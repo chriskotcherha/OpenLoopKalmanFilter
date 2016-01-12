@@ -41,14 +41,54 @@ stripWidth=2*0.0254;
 %including the use of two photodiodes and their difference as the signal,
 %hence the placeholder variable distanceBetweenPE;
 
-p1 = sensorPositions(1,:)'; %Position of the sensor with respect to the center of mass of the pod
-p2 = sensorPositions(2,:)'; %Position of the sensor with respect to the center of mass of the pod
-p3 = sensorPositions(3,:)'; %Position of the sensor with respect to the center of mass of the pod
+
+cm=[0;...
+     0;...
+     0;]; % This is the centre of mass position in the local frame which is currently defined at the origin at the center of the pod
+     
+l = 14; %Length of the pod
+h = 6; % Height of the pod
+w = 6; % Weight of the pod
+h2 = 2; % This is the distance from the center of the pod to the top of the circular cut at the bottom made for the rail
+a1 = 1; %This is a constant used to store the position of laser scanning sensor 1 in x 
+a2 =-1; %This is a constant used to store the position of laser scanning sensor 2 in x
+a3x =0; %This is a constant used to store the position of laser scanning sensor 3 in x
+a3y =0.6; %This is a constant used to store the position of laser scanning sensor 3 in y
+a3z =(h/5)-(h2/3); %This is a constant used to store the position of laser scanning sensor 3 in z
+a4x = l/2; %This is the distance of the pitot tube in x (Sensor 3)
+
+r= 3; %This is the radius of the tube at the point at which the photoelectric sensor is placed
+a5x = 5; %This is the distance of photoelectric sensors in x (Sensor 5)
+a6x = 5; %This is the distance of photoelectric sensors in x (Sensor 6)
+a6y = -r/sqrt(2); %This is the distance of photoelectric sensors in y (Sensor 6)
+a6z = r/sqrt(2); %This is the distance of photoelectric sensors in z (Sensor 6)
+a7x = 5; %This is the distance of photoelectric sensors in x (Sensor 7)
+a7y = r/sqrt(2); %This is the distance of photoelectric sensors in y (Sensor 7)
+a7z = r/sqrt(2); %This is the distance of photoelectric sensors in z (Sensor 7)
+
+p1 = [a1;...
+     0;...
+     -h2;]+cm; %Position of the sensor with respect to the center of mass of the pod
+p2 = [a2;...
+     0;...
+     -h2;]+cm; %Position of the sensor with respect to the center of mass of the pod
+p3 = [a3x;...
+     a3y;...
+     a3z;]+cm; %Position of the sensor with respect to the center of mass of the pod
 %tck = thicknessOfRail/2;
-p4 = sensorPositions(4,:)'; %Position of the sensor with respect to the center of mass of the pod
-p5 = sensorPositions(4,:)'; %Position of the sensor with respect to the center of mass of the pod
-p6 = sensorPositions(4,:)'; %Position of the sensor with respect to the center of mass of the pod
-p7 = sensorPositions(4,:)'; %Position of the sensor with respect to the center of mass of the pod
+p4 = [a4x;...
+     0;...
+     0;]+cm; %Position of the sensor with respect to the center of mass of the pod
+p5 = [a5x;...
+     0;...
+     h/2;]+cm; %Position of the sensor with respect to the center of mass of the pod
+
+p6 = [a6x;...
+     a6y;...
+     a6z;]+cm; %Position of the sensor with respect to the center of mass of the pod
+p7 = [a7x;...
+     a7y;...
+     a7z;]+cm; %Position of the sensor with respect to the center of mass of the pod
 
 
 b4 = sensorDirections(4,:)'; %Ray indicating direction sensor points in local coordinates
