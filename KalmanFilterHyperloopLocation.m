@@ -219,7 +219,7 @@ xkp1k=xkk+deltaT*[  xkk(4:6);...
 Pkp1k=Fk*Pkk*Fk'+Bk*Qk*Bk'+Wk; %prediction step of the error, needs to be experimentally determined 
 
 
-normQuat=sqrt(sum((xkp1k(7:10)).^2));
+normQuat=sqrt(sum((xkp1k(7:10)).^2)); %Normalizing the quaternions
 xkp1k(7:10)=xkp1k(7:10)./normQuat;
 
 
@@ -235,24 +235,28 @@ xkp1k(7:10)=xkp1k(7:10)./normQuat;
 % CORRECTIVE STEP 1, XZ LASER SCANNER
 if execution(1)==1
         
-    z1kp1 = sensorData(1,:);
+    z1kp1 = sensorData(1,:); % getting sensor data d (perpendicular distance) and theta (angle from the axis)
     
+    % Getting terms from the previous state prediction to use in calculations
     rz1=xkp1k(3);
     q11=xkp1k(7);  
     q12=xkp1k(8);
     q13=xkp1k(9);
     q10=xkp1k(10);
+    %Calculating the rotation matrix 
     Rot1=[1-2*q12^2-2*q13^2 2*(q11*q12-q10*q13) 2*(q11*q13+q10*q12);...
      2*(q11*q12+q10*q13) 1-2*q11^2-2*q13^2 2*(q12*q13-q10*q11);...
      2*(q11*q13-q10*q12) 2*(q12*q13+q10*q11) 1-2*q11^2-2*q12^2;];
     sz1=(Rot1(3,:)*p1+rz1);
     sq1=sqrt(Rot1(2,2)^+Rot1(1,2)^2);
     
+    %calculating the quaternion terms for the jacobian for a given state
+    %terms for d
     dd1dq1=(sq1*([2*q13 2*q10 -4*q11]*p1)-sz1*(Rot1(2,2)*(-4*q11) + Rot1(1,2)*2*q12)/sq1)/(sq1^2);
     dd1dq2=(sq1*([-2*q10 2*q13 -4*q12]*p1)-sz1*(Rot1(2,2)*0 + Rot1(1,2)*2*q11)/sq1)/(sq1^2);
     dd1dq3=(sq1*([2*q11 2*q12 0]*p1)-sz1*(Rot1(2,2)*(-4*q13) + Rot1(1,2)*-2*q10)/sq1)/(sq1^2);
     dd1dq0=(sq1*([-2*q12 2*q11 0]*p1)-sz1*(Rot1(2,2)*0 + Rot1(1,2)*-2*q13)/sq1)/(sq1^2);
-    
+    %terms for theta
     dtheta1dq1=(-1/sqrt(1-((Rot1(1,2)*Rot1(2,1)-Rot1(1,1)*Rot1(2,2))/sq1)^2))*(sq1*((-4*q11)*Rot1(2,1)+2*q12*Rot1(1,2)-0*Rot1(2,2)-2*q12*Rot1(1,1)) - (Rot1(1,2)*Rot1(2,1)-Rot1(1,1)*Rot1(2,2))*(Rot1(2,2)*(-4*q11) + Rot1(1,2)*2*q12)/sq1)/(sq1^2);
     dtheta1dq2=(-1/sqrt(1-((Rot1(1,2)*Rot1(2,1)-Rot1(1,1)*Rot1(2,2))/sq1)^2))*(sq1*(0*Rot1(2,1)+2*q11*Rot1(1,2)-q12*-4*Rot1(2,2)-2*q11*Rot1(1,1)) - (Rot1(1,2)*Rot1(2,1)-Rot1(1,1)*Rot1(2,2))*(Rot1(2,2)*0 + Rot1(1,2)*2*q11)/sq1)/(sq1^2);
     dtheta1dq3=(-1/sqrt(1-((Rot1(1,2)*Rot1(2,1)-Rot1(1,1)*Rot1(2,2))/sq1)^2))*(sq1*(-4*q13*Rot1(2,1)+2*q10*Rot1(1,2)-q13*-4*Rot1(2,2)-q10*-2*Rot1(1,1)) - (Rot1(1,2)*Rot1(2,1)-Rot1(1,1)*Rot1(2,2))*(Rot1(2,2)*(-4*q13) + Rot1(1,2)*-2*q10)/sq1)/(sq1^2);
@@ -262,16 +266,18 @@ if execution(1)==1
     H1kp1=[0 0 1/sq1 0 0 0 dd1dq1 dd1dq2 dd1dq3 dd1dq0;...
             0 0 0 0 0 0 dtheta1dq1 dtheta1dq2 dtheta1dq3 dtheta1dq0;];
     S1kp1=XZScannerCovariance; %Experimentally determined
-    K1kp1=Pkp1k*H1kp1'/(H1kp1*Pkp1k*H1kp1'+S1kp1);
+    K1kp1=Pkp1k*H1kp1'/(H1kp1*Pkp1k*H1kp1'+S1kp1); %getting Kalma gain for this step
 
     
     h1kp1=[sz1/sq1;...
            acos((Rot1(1,2)*Rot1(2,1)-Rot1(1,1)*Rot1(2,2))/sq1);];
         
+    % The next step compares the data from the sensors with the predicted state and alters
+    %the state prediction by a factor determined by the Kalman Gain
     x1kp1kp1=xkp1k+K1kp1*(z1kp1-h1kp1);
     P1kp1kp1=(eye(10,10)-K1kp1*H1kp1)*Pkp1k;
     
-    normQuat1=sqrt(sum((x1kp1kp1(7:10)).^2));
+    normQuat1=sqrt(sum((x1kp1kp1(7:10)).^2)); %normalizing quaternions
     x1kp1kp1(7:10)=x1kp1kp1(7:10)./normQuat1;
 else
     x1kp1kp1=xkp1k;
@@ -282,26 +288,29 @@ end
 
 % CORRECTIVE STEP 2, YZ LASER SCANNER
 if execution(2)==1
-    
+
+    % getting sensor data d (perpendicular distance) and theta (angle from the axis)
     z2kp1 = sensorData(2,:);
-        
+    % Getting terms from the previous state prediction to use in calculations    
     rz2=x1kp1kp1(3);
     q21=x1kp1kp1(7);  
     q22=x1kp1kp1(8);
     q23=x1kp1kp1(9);
     q20=x1kp1kp1(10);
+    %Calculating the rotation matrix
     Rot2=[1-2*q22^2-2*q23^2 2*(q21*q22-q20*q23) 2*(q21*q23+q20*q22);...
      2*(q21*q22+q20*q23) 1-2*q21^2-2*q23^2 2*(q22*q23-q20*q21);...
      2*(q21*q23-q20*q22) 2*(q22*q23+q20*q21) 1-2*q21^2-2*q22^2;];
     sz2=(Rot2(3,:)*p2+rz2);
     sq2=sqrt(Rot2(2,1)^+Rot2(1,1)^2);
     
-    
+    %calculating the quaternion terms for the jacobian for a given state
+    %terms for d
     dd2dq1=(sq2*([2*q23 2*q20 -4*q21]*p2)-sz2*(Rot2(2,1)*(2*q22) + Rot2(1,1)*0)/sq2)/(sq2^2);
     dd2dq2=(sq2*([-2*q20 2*q23 -4*q22]*p2)-sz2*(Rot2(2,1)*2*q21 + Rot2(1,1)*-4*q22)/sq2)/(sq2^2);
     dd2dq3=(sq2*([2*q21 2*q22 0]*p2)-sz2*(Rot2(2,1)*(2*q20) + Rot2(1,1)*-4*q23)/sq2)/(sq2^2);
     dd2dq0=(sq2*([-2*q22 2*q21 0]*p2)-sz2*(Rot2(2,1)*2*q23 + Rot2(1,1)*0)/sq2)/(sq2^2);
-    
+    %terms for theta
     dtheta2dq1=(1/sqrt(1-((Rot2(1,2)*Rot2(2,1)-Rot2(1,1)*Rot2(2,2))/sq2)^2))*(sq2*((-4*q21)*Rot2(2,1)+2*q22*Rot2(1,2)-0*Rot2(2,2)-2*q22*Rot2(1,1)) - (Rot2(1,2)*Rot2(2,1)-Rot2(1,1)*Rot2(2,2))*(Rot2(2,2)*(Rot2(2,1)*(2*q22) + Rot2(1,1)*0)/sq2)/(sq2^2));
     dtheta2dq2=(1/sqrt(1-((Rot2(1,2)*Rot2(2,1)-Rot2(1,1)*Rot2(2,2))/sq2)^2))*(sq2*(0*Rot2(2,1)+2*q21*Rot2(1,2)-q22*-4*Rot2(2,2)-2*q21*Rot2(1,1)) - (Rot2(1,2)*Rot2(2,1)-Rot2(1,1)*Rot2(2,2))*(Rot2(2,1)*2*q21 + Rot2(1,1)*-4*q22)/sq2)/(sq2^2);
     dtheta2dq3=(1/sqrt(1-((Rot2(1,2)*Rot2(2,1)-Rot2(1,1)*Rot2(2,2))/sq2)^2))*(sq2*(-4*q23*Rot2(2,1)+2*q20*Rot2(1,2)-q23*-4*Rot2(2,2)-q20*-2*Rot2(1,1)) - (Rot2(1,2)*Rot2(2,1)-Rot2(1,1)*Rot2(2,2))*(Rot2(2,1)*(2*q20) + Rot2(1,1)*-4*q23)/sq2)/(sq2^2);
@@ -311,12 +320,13 @@ if execution(2)==1
     H2kp1=[0 0 1/sq2 0 0 0 dd2dq1 dd2dq2 dd2dq3 dd2dq0;...
             0 0 0 0 0 0 dtheta2dq1 dtheta2dq2 dtheta2dq3 dtheta2dq0;];
     S2kp1=YZScannerCovariance; %Experimentally determined
-    K2kp1=P1kp1kp1*H2kp1'/(H2kp1*P1kp1kp1*H2kp1'+S2kp1);
+    K2kp1=P1kp1kp1*H2kp1'/(H2kp1*P1kp1kp1*H2kp1'+S2kp1); %getting Kalma gain for this step
 
     
     h2kp1=[sz2/sq2;...
            acos((Rot2(1,2)*Rot2(2,1)-Rot2(1,1)*Rot2(2,2))/sq2);];
-        
+    % The next step compares the data from the sensors with the predicted state and alters
+    %the state prediction by a factor determined by the Kalman Gain    
     x2kp1kp1=x1kp1kp1+K2kp1*(z2kp1-h2kp1);
     P2kp1kp1=(eye(10,10)-K2kp1*H2kp1)*P1kp1kp1;
     
@@ -331,14 +341,15 @@ end
 
 % CORRECTIVE STEP 3, XY LASER SCANNER
 if execution(3)==1
-    
+    % getting sensor data d (perpendicular distance) and theta (angle from the axis)
     z3kp1 = sensorData(3,:);
-        
+    % Getting terms from the previous state prediction to use in calculations    
     ry3=x2kp1kp1(2);
     q31=x2kp1kp1(7);  
     q32=x2kp1kp1(8);
     q33=x2kp1kp1(9);
     q30=x2fkp1kp1(10);
+    %Calculating the rotation matrix
     Rot3=[1-2*q32^2-2*q33^2 2*(q31*q32-q30*q33) 2*(q31*q33+q30*q32);...
      2*(q31*q32+q30*q33) 1-2*q31^2-2*q33^2 2*(q32*q33-q30*q31);...
      2*(q31*q33-q30*q32) 2*(q32*q33+q30*q31) 1-2*q31^2-2*q32^2;];
@@ -346,12 +357,13 @@ if execution(3)==1
     sq3=sqrt(Rot3(3,3)^2+Rot3(1,3)^2);
     m3=Rot3(1,1)*Rot3(3,3)-Rot3(1,3)*Rot3(3,1);
     
-    
+    %calculating the quaternion terms for the jacobian for a given state
+    %terms for d
     dd3dq1=-(thicknessOfRail/4)*((sq3)^(-3))*(2*Rot3(3,3)*-4*q31+2*Rot3(1,3)*2*q33)-(sq3*([2*q32 -4*q31 -2*q30]*p3)-0.5*(sy3*(2*Rot3(3,3)*-4*q31+2*Rot3(1,3)*2*q33)/sq3))/(sq3^2);
     dd3dq2=-(thicknessOfRail/4)*((sq3)^(-3))*(2*Rot3(3,3)*-4*q32+2*Rot3(1,3)*2*q30)-(sq3*([2*q31 0 2*q33]*p3)-0.5*(sy3*(2*Rot3(3,3)*-4*q32+2*Rot3(1,3)*2*q30)/sq3))/(sq3^2);
     dd3dq3=-(thicknessOfRail/4)*((sq3)^(-3))*(2*Rot3(3,3)*0+2*Rot3(1,3)*2*q31)-(sq3*([2*q30 -4*q33 2*q32]*p3)-0.5*(sy3*(2*Rot3(3,3)*0+2*Rot3(1,3)*2*q31)/sq3))/(sq3^2);
     dd3dq0=-(thicknessOfRail/4)*((sq3)^(-3))*(2*Rot3(3,3)*0+2*Rot3(1,3)*2*q32)-(sq3*([2*q33 0 -2*q31]*p3)-0.5*(sy3*(2*Rot3(3,3)*-2*q31+2*Rot3(1,3)*2*q32)/sq3))/(sq3^2);
-    
+    %terms for theta
     dtheta3dq1=-(((Rot3(1,1)*-4*q31+1*-4*q31*Rot3(3,3))-(Rot3(1,3)*2*q33+2*q33*Rot3(3,1)))*sq3-((0.5/sq3)*(2*Rot3(3,3)*-4*q31+2*Rot3(1,3)*2*q33))*m3)/((sq3^2)*sqrt(1-(m3/sq3)^2));
     dtheta3dq2=-(((Rot3(1,1)*-4*q32+1*-4*q32*Rot3(3,3))-(Rot3(1,3)*-2*q30+2*q30*Rot3(3,1)))*sq3-((0.5/sq3)*(2*Rot3(3,3)*-4*q32+2*Rot3(1,3)*2*q30))*m3)/((sq3^2)*sqrt(1-(m3/sq3)^2));
     dtheta3dq3=-(((Rot3(1,1)*0+1*-4*q33*Rot3(3,3))-(Rot3(1,3)*2*q31+2*q31*Rot3(3,1)))*sq3-((0.5/sq3)*(2*Rot3(3,3)*0+2*Rot3(1,3)*2*q31))*m3)/((sq3^2)*sqrt(1-(m3/sq3)^2));
@@ -361,12 +373,13 @@ if execution(3)==1
     H3kp1=[0 1/sq3 0 0 0 0 dd3dq1 dd3dq2 dd3dq3 dd3dq0;...
             0 0 0 0 0 0 dtheta3dq1 dtheta3dq2 dtheta3dq3 dtheta3dq0;];
     S3kp1=XYScannerCovariance; %Experimentally determined
-    K3kp1=P2kp1kp1*H3kp1'/(H3kp1*P2kp1kp1*H3kp1'+S3kp1);
+    K3kp1=P2kp1kp1*H3kp1'/(H3kp1*P2kp1kp1*H3kp1'+S3kp1); %getting Kalman gain for this step
 
     
     h3kp1=[((thicknessOfRail/2)-sy3)/sq3;
            acos((Rot3(1,1)*Rot3(3,3)-Rot3(1,3)*Rot3(3,1))/sq3);];
-        
+    % The next step compares the data from the sensors with the predicted state and alters 
+    %the state prediction by a factor determined by the Kalman Gain    
     x3kp1kp1=x2kp1kp1+K3kp1*(z3kp1-h3kp1);
     P3kp1kp1=(eye(10,10)-K3kp1*H3kp1)*P2kp1kp1;
     
